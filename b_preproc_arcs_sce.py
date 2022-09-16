@@ -144,7 +144,8 @@ def set_df_full_arc_sce():
 ##### df_all_arcs:  lista de todos los arcos (144) con información origen destino separa, demanda y prob fallo
 #####df_all_sce: lista de todos los escenarios (10080) sin información adicional
 #### df_all_arc_sce:  lista de todos los escenarios y todos los arcosa para cada escenario 
-####df_arcsce_count: lista de todos los arcos y escenarios con un 1 en los arcos que fallaron y 0 en los que no.
+####df_arcsce_count: lista de todos los arcos y escenarios con un 1 en los arcos que fallaron y 0 en los que no. (formatto long)
+##### df_wide_arcsce Una columna por cada arco, 1 si fallo 0 si no y una fila para cada escenario formato wide
 def main():
 
     arc_clas()
