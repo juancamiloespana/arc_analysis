@@ -7,12 +7,7 @@ import openpyxl
 def prepro_kpi(ruta='data/4. fullFlexKPI.txt'):
 
     df_ffkpi=pd.read_table(ruta, header=None) #leer los datos
-    #print(df_ffkpi)
-    #df_ffkpi.str.split('-',extend=True)
-    #datos1 = df_ffkpi.split(" ")
-    #Escenario = datos[2] #id de cada escenario
-    #Costo1= datos[6]
-    #Costo2=Costo1[:-3]
+    
     df_ffkpi = df_ffkpi[0].str.split('-', expand=True)
     #Funcion lambda funciona como un for que itera y elimina en cada registro o fila los caracteres que le indique
     df_ffkpi[0] = df_ffkpi[0].apply(lambda x : (x[:-1])) #quité escenario
@@ -24,25 +19,12 @@ def prepro_kpi(ruta='data/4. fullFlexKPI.txt'):
     df_ffkpi[5] = df_ffkpi[5].apply(lambda x : (x[21:-1]))
     df_ffkpi[6] = df_ffkpi[6].apply(lambda x : (x[35:])) #no sigue un guón
 
-
     #df_ffkpi.set_index(0, inplace = True)
     df_ffkpi = df_ffkpi.rename(columns={0:'escenario',1:'Costo', 2:'Arcos_faltantes',3:'Costo_ventas_perdidas',4:'Ventas_perdidas',5:'Costo_real_de_la_CS',6:'Tiempo_tot_esc'})
     df_ffkpi=df_ffkpi.astype({'Costo':'float','Arcos_faltantes':'int','Costo_ventas_perdidas':'float','Ventas_perdidas':'float','Costo_real_de_la_CS':'float','Tiempo_tot_esc':'int'})
     df_ffkpi.info(verbose=True)
-    
-    #df_ffkpi[Costo] = df_ffkpi[Costo].apply(lambda x : float(x[10:]))
-    #df_ffkpi['Costo'].describe()
-    #df_ffkpi.plot(kind='Arcos faltantes')
-    #print(df_ffkpi)
-    #print("Costo máximo: "+df_ffkpi['Costo'].max())
-    #print("Costo mínimo: "+df_ffkpi['Costo'].min())
-    #print("Costo promedio: "+df_ffkpi['Costo'].mean())
-    #shift+enter para correr a la derecha
-    
+        
     return(df_ffkpi)
-
-
-
 
 def arc_clas(url_arc='data/arcsData.txt'):
     ####Leer info de arcos
@@ -172,12 +154,10 @@ def set_df_full_arc_sce():
     df.to_sql('kpi_arc_ff', con, if_exists="replace", index=False)
 
 
-
-
 if __name__ == "__main__":
     
     
-        ##### tablas ####
+    ##### tablas ####
     #### se demora 20  minutos la función set_arcsce_df 
 
     ####df_arcsce:  los escenarios con las arcos que fallaron (solo los que fallaron)
@@ -189,8 +169,7 @@ if __name__ == "__main__":
     #### Kpi_ff: Kpi escenario fullflex
     #### kpi_arc_ff: unión de kpi_ff con df_wide_arc_sce  es la que queda en base de datos
 
-
-    
+   
     arc_clas()
     set_node_df()
     set_arcsce_df()
@@ -204,18 +183,3 @@ if __name__ == "__main__":
 
     cur.execute("vacuum")
     con.close()
-
-    ### para traer base de datos
-
-    #df=pd.read_sql("select * from kpi_ff", con)
-
-
-    #cur.execute("create table suma_costo as select sum(Costo) as suma from kpi_ff")
-
-    #pd.read_sql("select * from suma_costo", con)
-
-    #cur.execute("drop table suma_costo") ## para borrar tabla
-
-
-    #cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    #print(cur.fetchall())
