@@ -292,11 +292,7 @@ inter_df2.boxplot(by='sum')
 X2.columns[49]
 
 
-####### redes neuronales ##
 
-import tensorflow as ts
-from tensorflow import keras 
-from tensorflow.keras import layers
 
 
 

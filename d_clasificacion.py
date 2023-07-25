@@ -54,15 +54,21 @@ fig.show()
 
 ##### ajustar modelos de clasifacion #########
 
-mod=tree.DecisionTreeClassifier(max_depth=10, min_samples_leaf=20)
+
 #mod=RandomForestClassifier(min_samples_leaf=1, class_weight={0:20,1:1})
 
+
+
+######## modelo entrenamiento y evaluación ###############3333
+mod=tree.DecisionTreeClassifier( min_samples_leaf=1)
 X_train, X_test, y_train, y_test = train_test_split(X2, y_clas, test_size=0.20)
+
 
 mod.fit(X_train, y_train)
 pred=mod.predict(X_test)
 cm=metrics.confusion_matrix(y_test,pred, labels=mod.classes_ )
 disp=metrics.ConfusionMatrixDisplay(cm, display_labels=mod.classes_)
+metrics.roc_auc_score(y_test, pred)
 print(metrics.classification_report(y_test, pred))
 disp.plot()
 plt.title("Evaluación")
@@ -76,44 +82,108 @@ plt.title("Entrenamiento")
 plt.show()
 
 
+######## modelo datos completos ###############3333
 
-
-X2.columns[32]
-X2.columns[88]
-X2.columns[49]
-X2.columns[38]
-X2.columns[57]
-X2.columns[53]
-
-
-#### interaccion 1
-
-X2.columns[88]
-X2.columns[31]
-X2.columns[32]
-
-
-####### interacción 2
-X2.columns[57]
-X2.columns[53]
-X2.columns[51]
-
-74/228
-
-
-
-
-
+mod=tree.DecisionTreeClassifier( min_samples_leaf=30)
+mod.fit(X2, y_clas)
+pred=mod.predict(X2)
+cm=metrics.confusion_matrix(y_clas,pred, labels=mod.classes_ )
+disp=metrics.ConfusionMatrixDisplay(cm, display_labels=mod.classes_)
+metrics.roc_auc_score(y_clas, pred)
+print(metrics.classification_report(y_clas, pred))
+disp.plot()
+plt.title("Evaluación")
+plt.show()
 
 
 plt.figure(figsize=(100,100))
-tree.plot_tree(mod,fontsize=10,impurity=False,filled=True)
+tree.plot_tree(mod,fontsize=10,impurity=False,filled=True,node_ids=True)
 plt.show()
 
 
 
-df['Ventas_perdidas'][df]
-df['y_clas']=y_clas
+###################Lista de nodos con mayor proporcion de fallos #############
+#######################################################################
+
+n_prior=10 ### nodos a seleccionar
+n_nod=mod.tree_.node_count ## número de nodos
+nodos=mod.tree_.value.reshape([n_nod,2]) ###  observaciones categoria 0, obse cat 1
+prop_f=nodos[:,1]/(nodos[:,0] +nodos[:,1]) ## calcular proporcion cat 1(los que falllaron)
+nodos_mas_f=(-prop_f).argsort()[0:n_prior] #### definir número de nodos a priorizar
+prop_f[nodos_mas_f]
+
+nodos_prio= pd.DataFrame()
+
+nodos_prio['prop_col']=prop_f[nodos_mas_f]
+nodos_prio['ind_nodo']=nodos_mas_f
+nodos_prio['n'] = mod.tree_.n_node_samples[nodos_mas_f]
+
+nodos_prio.to_excel('resultados\\nodos_prio.xlsx')
+
+
+#####################Extraer las interacciones ###############
+
+nodo=nodos_mas_f[0]  ### seleccionar el número de un nodo para conocer la ruta o interacciones
+
+nodo=234
+
+
+def arcs_failed(nodo, mod, x_train):
+    dp=mod.decision_path(x_train) ### decision path 
+
+    dp.indices.shape ##el camino para llegar al nodo final de esa observacion, se repite la observacion por cada nodo en el que está
+    dp.indptr.shape ### el indice en el que arrancha el camino de cada observación 
+
+
+
+    indice_fin=np.where(dp.indices==nodo)[0][0] ### en qué indice de nodos está el nodo seleccionado
+    dp.indices[1760:indice_fin] ## para comprobar que el numero del nodo según el indice coincide con el seleccionado
+
+    dif=[x for x in indice_fin-dp.indptr if x>0]
+
+    pos_ini=np.argmin(dif) ### indica la posicion de indptr en la que está el indice inicial (el cero más cercano para determinar el path)
+    indice_ini=dp.indptr[pos_ini] ## extraer el indice en el que arranca el path
+
+    nodes_path=dp.indices[indice_ini:(indice_fin+1)] ## crea una lista con el camino desde 0 al nodo indicado
+
+    l_ind_var=[] ## crear lista de variables en 1 
+    deep=len(nodes_path) -1
+    i=1
+    for i in range(deep,-1,-1):
+        if mod.tree_.children_right[nodes_path[i-1]] == nodes_path[i]:
+            ind_var=mod.tree_.feature[nodes_path[i-1]]
+            l_ind_var.append(ind_var)
+
+    return l_ind_var
+
+
+
+failed=arcs_failed(233, mod, X2)
+
+if not failed:
+    inter=[]
+    
+else:
+    rows=X2.shape[0]
+    inter=[1]*rows
+    for i in failed:
+        inter=inter*X2[X2.columns[i]]
+
+np.unique(inter, return_counts=True)
+
+
+
+#########
+
+
+inter1=X2[X2.columns[49]]* X2[X2.columns[31]]* X2[X2.columns[88]]
+val= inter1==inter
+
+np.unique(val, return_counts=True)
+
+################################################3
+
+###### crear interacciones ###################333
 
 df_analisis=df[['y_clas','Ventas_perdidas',X2.columns[88],X2.columns[31],X2.columns[32]]]
 
@@ -129,6 +199,11 @@ df_analisis=df[['y_clas','Ventas_perdidas',X2.columns[88],X2.columns[58],X2.colu
 
 df_analisis.to_excel('intera3.xlsx', index=False)
 
+
+
+############################################################
+############### Medir importancia #########################
+##########################################################
 
 def model_imp(y, X2,mod, trans_inv=None):
     

@@ -14,7 +14,7 @@ import math ### para floor y ceil
 
 import plotly.express as px
 
-
+import matplotlib.pyplot as plt
 
 from statistics import linear_regression
 from tabnanny import verbose
@@ -46,6 +46,11 @@ cur.fetchall()
 info_arc=pd.read_sql("select * from info_arc", con).sort_values(by='prob_fallo')
 info_nodes=pd.read_sql("select * from info_nodes", con)
 
+info_arc.query('prob_fallo==0')
+
+
+
+info_arc.columns
 
 ##################################################################
 ##################################################################
@@ -60,7 +65,8 @@ info_nodes=pd.read_sql("select * from info_nodes", con)
 ###### traer tabla de arcos y escenarios y cruzar con KPI
 
 df=pd.read_sql(" select * from kpi_arc_ff", con)
-
+df['Arcos_faltantes'].mean()
+df['Arcos_faltantes'].max()
 
 #######Explorar variable respuesta ########
 
@@ -103,7 +109,13 @@ fig.show()
 
 df['Costo_real_de_la_CS'].corr(df['Costo_ventas_perdidas']) ## mientras aumenta costo real disminuye ventas perdidas
 df['Costo_ventas_perdidas'].corr(df['Costo']) ## Las ventas perdidas tienen mayor peso sobre el costo
+y=df['Ventas_perdidas']
+y_clas= (y>7000000)
 
+fig=px.box(y=df['Arcos_faltantes'], x=y_clas)
+fig.update_xaxes(title_text='Colapso')
+fig.update_yaxes(title_text='Número de arcos que fallaron')
+fig.show()
 
 df.sort_values(['Ventas_perdidas',], ascending=False)
 

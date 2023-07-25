@@ -31,9 +31,32 @@ y_clas.astype(int)
 y_clas.value_counts()
 
 ### calcular probabilidad de fallo general
-y_clas[y_clas==True].count()/y_clas[y_clas==False].count()
+y_clas[y_clas==True].count()/y_clas.count()
 
 
+##### interacciones ######
+
+inter1=np.equal([X2[X2.columns[88]] + X2[X2.columns[31]]] ,2)[0]
+np.unique(inter1, return_counts=True)
+
+inter2=np.equal([X2[X2.columns[88]] + X2[X2.columns[58]] ],2)[0]
+np.unique(inter2, return_counts=True)
+
+inter3=np.equal([X2[X2.columns[51]] + X2[X2.columns[59]]],2)[0]
+np.unique(inter3, return_counts=True)
+
+inter4=np.equal([X2[X2.columns[57]] + X2[X2.columns[51]] + X2[X2.columns[53]]],3)[0]
+np.unique(inter4, return_counts=True)
+
+inter5=np.equal([X2[X2.columns[88]] + X2[X2.columns[31]] + X2[X2.columns[96]]],3)[0]
+np.unique(inter5, return_counts=True)
+
+
+X2['inter1']=inter1
+X2['inter2']=inter2
+X2['inter3']=inter3
+X2['inter4']=inter4
+X2['inter5']=inter5
 
 
 def dif_prop(var_name):
@@ -92,5 +115,8 @@ dif=pd.DataFrame({'arc':arc_list,'prop_col_af': prop_col_af_list, 'prop_col_aok'
 
 dif.sort_values('n_sce_af', ascending=False)
 
-dif.to_excel('dif_arcos.xlsx')
+dif.to_excel('resultados\\dif_arcos.xlsx')
 
+
+
+dif_prop('inter1')
