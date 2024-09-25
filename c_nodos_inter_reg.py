@@ -234,7 +234,7 @@ bds=["data\\db_estFija10","data\\db_estFija20","data\\db_estFija30"]
 
 ### conectarse a bd
 
-bd=bds[2]
+bd='data\\db_arcsce'
 
 con=sql.connect(bd) 
 cur=con.cursor()
@@ -251,13 +251,30 @@ X=df.drop(['escenario','Costo','Ventas_perdidas','Arcos_faltantes','Costo_ventas
 y=df['Ventas_perdidas']
 
 
-comp_estFijo30=analizar_comb(X, y)
+comp_estFijo=analizar_comb(X,y)
+# comp_estFijo30=analizar_comb(X, y)
 
-comp_estFijo20=analizar_comb(X, y)
+# comp_estFijo20=analizar_comb(X, y)
 
-comp_estFijo10= analizar_comb(X, y)
+# comp_estFijo10= analizar_comb(X, y)
 
     
-comp_estFijo10.to_excel("resultados\\comp_estFijo10.xlsx", index=False)
-comp_estFijo20.to_excel("resultados\\comp_estFijo20.xlsx", index=False)
-comp_estFijo30.to_excel("resultados\\comp_estFijo30.xlsx", index=False)
+# comp_estFijo10.to_excel("resultados\\comp_estFijo10.xlsx", index=False)
+# comp_estFijo20.to_excel("resultados\\comp_estFijo20.xlsx", index=False)
+# comp_estFijo30.to_excel("resultados\\comp_estFijo30.xlsx", index=False)
+comp_estFijo.to_excel("resultados\\comp_estFijo.xlsx", index=False)
+
+
+##### arbol imprimir
+
+### numero de escenarios que se consdiran significativos
+n_min_sce=30 ## param
+
+mod=tree.DecisionTreeRegressor( min_samples_leaf=n_min_sce, max_depth=3)
+mod.fit(X, y)
+
+
+
+plt.figure(figsize=(18,18))
+tree.plot_tree(mod,fontsize=10,impurity=False,filled=True,node_ids=True)
+plt.show()

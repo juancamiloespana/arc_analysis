@@ -167,12 +167,12 @@ def main():
     ##### df_wide_arcsce Una columna por cada arco, 1 si fallo 0 si no y una fila para cada escenario formato wide
     #### Kpi_ff: Kpi escenario fullflex
     #### kpi_arc_ff: unión de kpi_ff con df_wide_arc_sce  es la que queda en base de datos
-    db="data\\db_estFija30"
+    db="data\\db_estFija"
     url_arc='data/arcsData.txt'
     url_nodes='data/nodesData.txt'
     url_nodeclas='data/clasificacionArcos.txt'
-    url_arcsce='data/5_EstFija30Arcos.txt'
-    url_kpi='data/5_EstFija30KPI.txt'
+    url_arcsce='data/6_EstFijaArcos.txt'
+    url_kpi='data/6_EstFijaKPI.txt'
     
     
     con=sql.connect(db)

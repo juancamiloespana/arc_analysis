@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 from statistics import linear_regression
 from tabnanny import verbose
-import streamlit as st
+#import streamlit as st
 
 
 import plotly.graph_objects as go
@@ -59,11 +59,19 @@ curs[0].execute("select name from sqlite_master where type='table'")
 curs[0].fetchall()
 
 
+
 ####### información de nods y arcos es igual para todos los escenarios
 
 info_arc=pd.read_sql("select * from info_arc", cons[0]).sort_values(by='prob_fallo')
 info_nodes=pd.read_sql("select * from info_nodes", cons[0])
 info_arc['demanda'].sum()
+
+pd.read_sql(""" select * from info_nodes where Supplier =1 """, cons[0])
+pd.read_sql(""" select * from info_nodes where Plant =1 """, cons[0])
+pd.read_sql(""" select * from info_nodes where CD =1 """, cons[0])
+pd.read_sql(""" select * from info_nodes where Customer =1 """, cons[0])
+pd.read_sql(""" select * from info_arc order by prob_fallo desc """, cons[0]).head(20)
+
 
 info_arc.query('prob_fallo==0')
 info_arc.columns
@@ -80,6 +88,7 @@ df2['esce_prob'] = 'K=3'
 
 df_cum=df.append(df1).append(df2)
 
+pd.read_sql
 ###validar probabilidades para un arco
 
 arco='Pinchote - Barbosa_Boy'
