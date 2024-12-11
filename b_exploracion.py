@@ -80,13 +80,13 @@ info_arc['arc']
 
 
 df=pd.read_sql(" select * from kpi_arc_ff", cons[0])
-df['esce_prob'] = 'K=1'
+df['esce_prob'] = 'τ =1'
 df1=pd.read_sql(" select * from kpi_arc_ff", cons[1])
-df1['esce_prob'] = 'K=2'
+df1['esce_prob'] = 'τ =2'
 df2=pd.read_sql(" select * from kpi_arc_ff", cons[2])
-df2['esce_prob'] = 'K=3'
+df2['esce_prob'] = 'τ =3'
 
-df_cum=df.append(df1).append(df2)
+df_cum=pd.concat([df,df1,df2])
 
 pd.read_sql
 ###validar probabilidades para un arco
@@ -117,7 +117,7 @@ formatter = ticker.FuncFormatter(lambda x, pos: f'{x/1e6:.0f}M')
 ax.xaxis.set_major_formatter(formatter)
 sns.stripplot(y='esce_prob', x ='Ventas_perdidas', data=df_cum,size=4, color=".3", alpha=.25, palette='dark')
 plt.ylabel('Scenario')
-plt.xlabel('Number of unsatisfied demand products ($U_{kj}$)')
+plt.xlabel('Lost sales units')
 plt.show()
 
 group_data=df_cum.groupby('esce_prob')['Ventas_perdidas'].agg(['mean', 'max', 'min']).reset_index()
@@ -196,8 +196,8 @@ fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(15, 5))
 
 ax=sns.scatterplot(x='Arcos_faltantes', y='Ventas_perdidas', palette='viridis',data=df, ax=axes[0])
 formatter = ticker.FuncFormatter(lambda x, pos: f'{x/1e6:.0f}M')
-axes[0].set_xlabel("K=1 Number of closed arc")
-axes[0].set_ylabel("Unsatisfied demand")
+axes[0].set_xlabel("τ=1 Number of closed arc")
+axes[0].set_ylabel("Lost sales units")
 ax.yaxis.set_major_formatter(formatter)
 
 
@@ -207,7 +207,7 @@ ax=sns.scatterplot(x='Arcos_faltantes', y='Ventas_perdidas', color='black',data=
 formatter = ticker.FuncFormatter(lambda x, pos: f'{x/1e6:.0f}M')
 ax.yaxis.set_major_formatter(formatter)
 axes[1].set_ylabel("")
-axes[1].set_xlabel("K=2 Number of closed arc")
+axes[1].set_xlabel("τ=2 Number of closed arc")
 
 
 
@@ -215,5 +215,5 @@ axes[1].set_xlabel("K=2 Number of closed arc")
 ax=sns.scatterplot(x='Arcos_faltantes', y='Ventas_perdidas', color='grey',data=df2,ax=axes[2])
 formatter = ticker.FuncFormatter(lambda x, pos: f'{x/1e6:.0f}M')
 ax.yaxis.set_major_formatter(formatter)
-axes[2].set_xlabel("K=3 Number of closed arc")
+axes[2].set_xlabel("τ=3 Number of closed arc")
 axes[2].set_ylabel("")

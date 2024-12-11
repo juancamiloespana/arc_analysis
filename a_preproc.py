@@ -198,3 +198,129 @@ def main():
     
 main()
 
+
+
+
+### convertir esto a función para que se pueda aplicar para cada escenario
+###############  agregar coordenadas y enumerar ########################
+
+db="data\\db_estFija10"
+con=sql.connect(db)
+cur= sql.Cursor(con)
+
+cur.execute("select name from sqlite_master where type='table'")
+cur.fetchall()
+
+
+coord=pd.read_csv('data\\coordenadas\\Coordenadas.csv')
+coord.to_sql('coordenadas', con, if_exists="replace")
+pd.read_sql('select*, i as dos from info_nodes', con)
+####### información de nods y arcos es igual para todos los escenarios
+
+info_nodes=pd.read_sql("""with t1 as ( 
+                       select 
+                       code_node,
+                       case when name_node = 'Bogota1' then 'Bogota'
+                        when name_node = 'Bogota2' then 'Bogota'
+                        when name_node = 'Barranquilla1' then 'Barranquilla'
+                        when name_node = 'Ibague1' then 'Ibague'
+                        when name_node = 'Medellin1' then 'Medellin'
+                        when name_node = 'Pereira1' then 'Pereira' else name_node
+                        end as name_node,
+                        Supplier,
+                        Plant,
+                        CD,
+                        Customer
+                        from info_nodes)
+                        select 
+                        a.*, b.Latitude as latitude, 
+                        b.Longitude as longitude  
+                        from t1 a left join 
+                        coordenadas b 
+                        on a.name_node =b.Name order by Latitude asc""", con)
+
+
+
+info_nodes.drop(columns=['code_node'], inplace =True)
+
+info_nodes2.drop('i')
+
+info_nodes2=info_nodes.drop_duplicates(subset="name_node",keep='first')
+
+info_nodes2.reset_index(inplace=True)
+
+info_nodes2['index']+=1
+
+info_nodes2.rename(columns={'index': 'i'}, inplace=True)
+
+info_nodes2.to_sql('info_nodes', con, if_exists='replace', index=False)
+cur.execute('drop table if exists info_node2')
+#################info arcos
+
+info_arc=pd.read_sql(""" with t1 as( 
+                     select 
+                     case when origen = 'Bogota1' then 'Bogota'
+                        when origen = 'Bogota2' then 'Bogota'
+                        when origen = 'Barranquilla1' then 'Barranquilla'
+                        when origen = 'Ibague1' then 'Ibague'
+                        when origen = 'Medellin1' then 'Medellin'
+                        when origen = 'Pereira1' then 'Pereira' else origen
+                        end as origen,
+                        case when destino = 'Bogota1' then 'Bogota'
+                        when destino = 'Bogota2' then 'Bogota'
+                        when destino = 'Barranquilla1' then 'Barranquilla'
+                        when destino = 'Ibague1' then 'Ibague'
+                        when destino = 'Medellin1' then 'Medellin'
+                        when destino = 'Pereira1' then 'Pereira' else destino
+                        end as destino,
+                        demanda,
+                        prob_fallo,
+                        arc 
+                        from info_arc)
+                        select
+                        '(' || b.i || ',' || c.i || ')' AS arc_i_j, 
+                        a.*,
+                        b.Latitude as latitud_o,
+                        b.Longitude as longitud_o,
+                        c.Latitude as latitud_d,
+                        c.Longitude as longitude_d,
+                        b.i as i_o,
+                        c.i as i_d
+                        from t1 a left join info_nodes b on a.origen=b.name_node left join
+                       info_nodes c on a.destino=c.name_node
+                        """, con).sort_values(by='prob_fallo')
+
+info_arc=info_arc.drop_duplicates(subset='arc_i_j',keep='first')
+info_arc.sort_values('arc_i_j')
+info_arc.to_csv('data\\info_arc.csv')
+
+
+info_nodes2.to_csv('data\\info_nodes.csv')
+info_arc.to_sql('info_arc', con, if_exists='replace')
+
+####
+
+index_node=info_nodes2[['name_node','i']]
+
+index_node.columns=['Node name','index']
+
+index_node=index_node.replace('_', ' ', regex=True)
+index_node.to_csv('data\\node_index_long.csv', index=False)
+
+
+
+n = len(index_node)  # Number of rows
+num_parts = 3
+rows_per_part = (n + num_parts - 1) // num_parts  # Ceiling division for rows per part
+
+# Reshape into three columns
+reshaped_data = []
+for i in range(num_parts):
+    start_idx = i * rows_per_part
+    end_idx = min(start_idx + rows_per_part, n)
+    reshaped_data.append(index_node.iloc[start_idx:end_idx].reset_index(drop=True))
+
+# Combine into a single DataFrame with new columns
+final_table = pd.concat(reshaped_data, axis=1, keys=[f'Part{i+1}' for i in range(num_parts)])
+
+final_table.to_csv('data\\node_index.csv', index=False)
