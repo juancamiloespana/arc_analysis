@@ -234,7 +234,7 @@ bds=["data\\db_estFija10","data\\db_estFija20","data\\db_estFija30"]
 
 ### conectarse a bd
 
-bd='data\\db_arcsce'
+bd='data\\girardot_espinal'
 
 con=sql.connect(bd) 
 cur=con.cursor()

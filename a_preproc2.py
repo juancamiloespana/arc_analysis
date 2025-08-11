@@ -1,0 +1,327 @@
+      
+      
+      
+      
+import pandas as pd
+import sqlite3 as sql
+import openpyxl
+
+
+def arc_clas(con,url_arc='data/arcsData.txt'):
+    ####Leer info de arcos
+    df_arc_ff=pd.read_table(url_arc, header=None,sep=" ")
+    df_arc_ff.columns=['origen','destino','demanda','prob_fallo']
+    df_arc_ff["arc"]=df_arc_ff['origen'] + ' - ' +df_arc_ff['destino']
+    
+   
+    df_arc_ff.to_sql('info_arc', con, if_exists='replace')
+    
+    
+    return(df_arc_ff)
+
+def set_node_df(con, url_nodes='data/nodesData.txt',url_nodeclas='data/clasificacionArcos.txt'):  
+    
+    #### leer nombre nodos
+
+    df_nodes=pd.read_table(url_nodes, header=None,sep=" ")
+    df_nodes['cod_node']=df_nodes.index
+    df_nodes.columns=['name_node','code_node']
+
+    ### leer características nodos
+
+    df_nodes_carc=pd.read_table(url_nodeclas, header=None,sep='&')
+
+    x=df_nodes_carc[0].str.split("/",expand=True)
+    x.columns=["Supplier","Plant","CD","Customer"]
+    x['Supplier']=x['Supplier'].str.split("[",expand=True)[1]
+    x["Supplier"]=x["Supplier"].str.strip()
+
+    y=df_nodes_carc[1].str.split("]",expand=True)
+    y1=y[0].str.split("/",expand=True)
+    y1.columns=["Supplier","Plant","CD","Customer"]
+    y1['Customer']=y1['Customer'].str.strip()
+    nodes=y[1].str.split("-",expand=True)
+    x_node =nodes[0].str.split("(",expand=True)
+    x_node=x_node[1]
+    x_node.column=["name_node"]
+    y_node=nodes[1].str.split(")", expand=True)[0]
+
+    x["name_node"]=x_node
+    y1['name_node']=y_node
+
+    x_y=pd.concat([x,y1], axis=0 )
+  
+
+    x_y.replace(['-',' -','-  '],0, inplace=True)
+    x_y.replace(['Supplier','Plant','CD','Customer', ' Supplier', 'Customer '],1, inplace=True)
+    x_y.drop_duplicates(inplace=True)
+
+    df_nodes= df_nodes.merge(x_y, how='inner')
+
+    df_nodes=df_nodes[['code_node','name_node','Supplier','Plant','CD','Customer']]
+
+    df_nodes.to_sql('info_nodes', con, if_exists='replace')
+
+    return()
+
+def set_arcsce_df(con, url_arcsce='data/3. fullFlexArcos.txt', ):
+
+
+    df_sce=pd.DataFrame()
+    fila_df=pd.DataFrame()
+
+    ### leer escenarios y arcos que fallaron
+    with open(url_arcsce) as f:
+        for line in f:
+            fila=line.split(':')
+            #print(fila)
+            #print(fila[1])
+            fila1=fila[1].split(',')
+            #print(fila1)
+            sce=fila1[0].strip()  # escenario
+            #print(sce)
+            arc_fail=fila1[1].split('/')
+            arc_fail[-1]
+            #print(arc_fail)
+            fila_df=pd.DataFrame(arc_fail,columns=['arc_fail'])
+            fila_df['escenario']=sce
+            fila_df=fila_df[fila_df['arc_fail']!='\n']
+            fila_df=fila_df[['escenario','arc_fail']]
+            df_sce=pd.concat([df_sce,fila_df],ignore_index=True)
+
+
+    df_sce.to_sql("df_arcsce", con, if_exists='replace', index=False)
+
+    return(df_sce)            
+
+
+def prepro_kpi(url_kpi='data/4. fullFlexKPI.txt'):
+
+    df_ffkpi=pd.read_table(url_kpi, header=None, sep=",") #leer los datos
+    df_ffkpi.reset_index(inplace=True)
+    df_ffkpi = df_ffkpi.rename(columns={'index':'escenario',0:'Ventas_perdidas',1:'Costo_ventas_perdidas' })
+    df_ffkpi=df_ffkpi.astype({'escenario':'int','Ventas_perdidas':'float','Costo_ventas_perdidas':'float'})
+    df_ffkpi.info(verbose=True)
+        
+    return(df_ffkpi)
+              
+def set_df_full_arc_sce(con, cur, df_kpi):
+     
+    cur.execute('''drop table if exists df_all_sce ''')
+    cur.execute('''
+                create table df_all_sce as
+                select distinct escenario
+                from df_arcsce
+                
+                ''')
+
+    cur.execute('''drop table if exists  df_all_arcsce ''')
+    cur.execute('''
+                create table df_all_arcsce as
+                select replace(arc, ' ', '') as arc,  escenario
+                from info_arc join df_all_sce
+                
+                ''')   
+    
+
+
+    cur.execute('''drop table if exists  df_arcsce_count ''')
+    
+    cur.execute('''
+                create table df_arcsce_count as
+                select a.arc,  a.escenario, iif(arc_fail is null, 0,1) as arc_fail
+                from df_all_arcsce a left join 
+                df_arcsce b on a.escenario=b.escenario and a.arc=b.arc_fail         
+                ''')        
+
+    #### convertir a wide ####
+
+    df_long_arcsce=pd.read_sql("select * from df_arcsce_count", con)
+    df_wide_arcsce=df_long_arcsce.pivot(index='escenario',columns='arc', values='arc_fail')
+    df_wide_arcsce.reset_index(inplace=True)
+    df_wide_arcsce = df_wide_arcsce.astype({'escenario':'int'})
+
+    df=df_kpi.merge(df_wide_arcsce,how='inner', on="escenario") ### cruzar KPI con arcos fallaron
+    
+    df.to_sql('kpi_arc_ff', con, if_exists="replace", index=False)
+
+
+def main():
+    
+    ##### tablas ####
+    #### se demora 20  minutos la función set_arcsce_df 
+
+    ####df_arcsce:  los escenarios con las arcos que fallaron (solo los que fallaron)
+    ##### info_arc:  lista de todos los arcos (144) con información origen destino separa, demanda y prob fallo
+    #####df_all_sce: lista de todos los escenarios (10080) sin información adicional
+    #### df_all_arc_sce:  lista de todos los escenarios y todos los arcosa para cada escenario 
+    ####df_arcsce_count: lista de todos los arcos y escenarios con un 1 en los arcos que fallaron y 0 en los que no. (formatto long)
+    ##### df_wide_arcsce Una columna por cada arco, 1 si fallo 0 si no y una fila para cada escenario formato wide
+    #### Kpi_ff: Kpi escenario fullflex
+    #### kpi_arc_ff: unión de kpi_ff con df_wide_arc_sce  es la que queda en base de datos
+    
+    path_fail='data/escenarios/fallos/'
+    path_kpi='data/escenarios/kpi/'
+
+
+
+    db='data/girardot_espinal'
+    url_arc='data/arcsData.txt'
+    url_nodes='data/nodesData.txt'
+    url_nodeclas='data/clasificacionArcos.txt'
+    url_arcsce='data/escenarios/fallos_Girardot-Espinal.csv'
+    url_kpi='data/escenarios/kpi_Girardot-Espinal.csv'
+    
+    
+    con=sql.connect(db)
+    cur= sql.Cursor(con)
+    
+    cur.execute("select name from sqlite_master where type='table'")
+    cur.fetchall()
+    #### preprocesar insumos
+    arc_clas(con,url_arc)
+    set_node_df(con,url_nodes,url_nodeclas)
+    set_arcsce_df(con, url_arcsce)
+    df_kpi=prepro_kpi(url_kpi) ## generar kpi organizado
+    set_df_full_arc_sce(con, cur, df_kpi)
+    
+    #### depurar base ###
+    cur.execute("drop table if exists df_arcsce ")
+    cur.execute("drop table if exists df_all_sce ")
+    cur.execute("drop table if exists df_all_arcsce ")
+
+    cur.execute("vacuum")
+    con.close()
+    
+    
+main()
+
+
+
+
+
+
+
+### convertir esto a función para que se pueda aplicar para cada escenario
+###############  agregar coordenadas y enumerar ########################
+
+db="data\\db_estFija10"
+con=sql.connect(db)
+cur= sql.Cursor(con)
+
+cur.execute("select name from sqlite_master where type='table'")
+cur.fetchall()
+
+
+coord=pd.read_csv('data\\coordenadas\\Coordenadas.csv')
+coord.to_sql('coordenadas', con, if_exists="replace")
+pd.read_sql('select*, i as dos from info_nodes', con)
+####### información de nods y arcos es igual para todos los escenarios
+
+info_nodes=pd.read_sql("""with t1 as ( 
+                       select 
+                       code_node,
+                       case when name_node = 'Bogota1' then 'Bogota'
+                        when name_node = 'Bogota2' then 'Bogota'
+                        when name_node = 'Barranquilla1' then 'Barranquilla'
+                        when name_node = 'Ibague1' then 'Ibague'
+                        when name_node = 'Medellin1' then 'Medellin'
+                        when name_node = 'Pereira1' then 'Pereira' else name_node
+                        end as name_node,
+                        Supplier,
+                        Plant,
+                        CD,
+                        Customer
+                        from info_nodes)
+                        select 
+                        a.*, b.Latitude as latitude, 
+                        b.Longitude as longitude  
+                        from t1 a left join 
+                        coordenadas b 
+                        on a.name_node =b.Name order by Latitude asc""", con)
+
+
+
+info_nodes.drop(columns=['code_node'], inplace =True)
+
+info_nodes2.drop('i')
+
+info_nodes2=info_nodes.drop_duplicates(subset="name_node",keep='first')
+
+info_nodes2.reset_index(inplace=True)
+
+info_nodes2['index']+=1
+
+info_nodes2.rename(columns={'index': 'i'}, inplace=True)
+
+info_nodes2.to_sql('info_nodes', con, if_exists='replace', index=False)
+cur.execute('drop table if exists info_node2')
+#################info arcos
+
+info_arc=pd.read_sql(""" with t1 as( 
+                     select 
+                     case when origen = 'Bogota1' then 'Bogota'
+                        when origen = 'Bogota2' then 'Bogota'
+                        when origen = 'Barranquilla1' then 'Barranquilla'
+                        when origen = 'Ibague1' then 'Ibague'
+                        when origen = 'Medellin1' then 'Medellin'
+                        when origen = 'Pereira1' then 'Pereira' else origen
+                        end as origen,
+                        case when destino = 'Bogota1' then 'Bogota'
+                        when destino = 'Bogota2' then 'Bogota'
+                        when destino = 'Barranquilla1' then 'Barranquilla'
+                        when destino = 'Ibague1' then 'Ibague'
+                        when destino = 'Medellin1' then 'Medellin'
+                        when destino = 'Pereira1' then 'Pereira' else destino
+                        end as destino,
+                        demanda,
+                        prob_fallo,
+                        arc 
+                        from info_arc)
+                        select
+                        '(' || b.i || ',' || c.i || ')' AS arc_i_j, 
+                        a.*,
+                        b.Latitude as latitud_o,
+                        b.Longitude as longitud_o,
+                        c.Latitude as latitud_d,
+                        c.Longitude as longitude_d,
+                        b.i as i_o,
+                        c.i as i_d
+                        from t1 a left join info_nodes b on a.origen=b.name_node left join
+                       info_nodes c on a.destino=c.name_node
+                        """, con).sort_values(by='prob_fallo')
+
+info_arc=info_arc.drop_duplicates(subset='arc_i_j',keep='first')
+info_arc.sort_values('arc_i_j')
+info_arc.to_csv('data\\info_arc.csv')
+
+
+info_nodes2.to_csv('data\\info_nodes.csv')
+info_arc.to_sql('info_arc', con, if_exists='replace')
+
+####
+
+index_node=info_nodes2[['name_node','i']]
+
+index_node.columns=['Node name','index']
+
+index_node=index_node.replace('_', ' ', regex=True)
+index_node.to_csv('data\\node_index_long.csv', index=False)
+
+
+
+n = len(index_node)  # Number of rows
+num_parts = 3
+rows_per_part = (n + num_parts - 1) // num_parts  # Ceiling division for rows per part
+
+# Reshape into three columns
+reshaped_data = []
+for i in range(num_parts):
+    start_idx = i * rows_per_part
+    end_idx = min(start_idx + rows_per_part, n)
+    reshaped_data.append(index_node.iloc[start_idx:end_idx].reset_index(drop=True))
+
+# Combine into a single DataFrame with new columns
+final_table = pd.concat(reshaped_data, axis=1, keys=[f'Part{i+1}' for i in range(num_parts)])
+
+final_table.to_csv('data\\node_index.csv', index=False)
