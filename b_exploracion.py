@@ -55,6 +55,9 @@ for i in range(len(bds)):
     curs.append(cur)
 
 
+cons[0]=sql.connect('data/DB1/db_estFija')
+curs[0]=cons[0].cursor()
+
 curs[0].execute("select name from sqlite_master where type='table'")
 curs[0].fetchall()
 
@@ -88,7 +91,7 @@ df2['esce_prob'] = 'τ =3'
 
 df_cum=pd.concat([df,df1,df2])
 
-pd.read_sql
+
 ###validar probabilidades para un arco
 
 arco='Pinchote - Barbosa_Boy'

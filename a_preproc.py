@@ -5,6 +5,9 @@
 import pandas as pd
 import sqlite3 as sql
 import openpyxl
+from os import listdir
+from tqdm import tqdm  ### para crear contador en un for para ver evolución
+
 
 
 def arc_clas(con,url_arc='data/arcsData.txt'):
@@ -67,27 +70,21 @@ def set_node_df(con, url_nodes='data/nodesData.txt',url_nodeclas='data/clasifica
 def set_arcsce_df(con, url_arcsce='data/3. fullFlexArcos.txt', ):
 
 
-    df_sce=pd.DataFrame()
-    fila_df=pd.DataFrame()
-    i=1
+    # Efficiently parse and store data using lists, avoid repeated DataFrame concatenation
+    data = []
     with open(url_arcsce) as f:
-        for line in f:
-            fila=line.split('[')
-            
-            if (len(fila)==3):
-                sce=fila[0].strip()
-                arc_fail=fila[2].replace(']\n','').strip()
-                fila_df=pd.DataFrame([[sce,arc_fail]],columns=["escenario",'arc_fail'])
-                df_sce=pd.concat([df_sce,fila_df],ignore_index=True) 
-            
-            if (len(fila)==2):
-                
-                arc_fail=fila[1].replace(']\n','').strip()
-                fila_df=pd.DataFrame([[sce,arc_fail]],columns=["escenario",'arc_fail'])
-                df_sce=pd.concat([df_sce,fila_df],ignore_index=True) 
-                
-
-    df_sce.to_sql("df_arcsce", con)
+        sce = None
+        for line in tqdm(f):
+            fila = line.split('[')
+            if len(fila) == 3:
+                sce = fila[0].strip()
+                arc_fail = fila[2].replace(']\n', '').strip()
+                data.append((sce, arc_fail))
+            elif len(fila) == 2 and sce is not None:
+                arc_fail = fila[1].replace(']\n', '').strip()
+                data.append((sce, arc_fail))
+    df_sce = pd.DataFrame(data, columns=["escenario", "arc_fail"])
+    df_sce.to_sql("df_arcsce", con, if_exists="replace", index=False)
 
     return(df_sce)            
 
@@ -167,34 +164,54 @@ def main():
     ##### df_wide_arcsce Una columna por cada arco, 1 si fallo 0 si no y una fila para cada escenario formato wide
     #### Kpi_ff: Kpi escenario fullflex
     #### kpi_arc_ff: unión de kpi_ff con df_wide_arc_sce  es la que queda en base de datos
-    db="data\\girardot_espinal"
+    
+    ## archivos genéricos de la red
+
     url_arc='data/arcsData.txt'
     url_nodes='data/nodesData.txt'
     url_nodeclas='data/clasificacionArcos.txt'
-    url_arcsce='data/escenarios/fallos_Girardot-Espinal.csv'
-    url_kpi='data/6_EstFijaKPI.txt'
-    
-    
-    con=sql.connect(db)
-    cur= sql.Cursor(con)
-    
-    cur.execute("select name from sqlite_master where type='table'")
-    cur.fetchall()
-    #### preprocesar insumos
-    arc_clas(con,url_arc)
-    set_node_df(con,url_nodes,url_nodeclas)
-    set_arcsce_df(con, url_arcsce)
-    df_kpi=prepro_kpi(url_kpi) ## generar kpi organizado
-    set_df_full_arc_sce(con, cur, df_kpi)
-    
-    #### depurar base ###
-    cur.execute("drop table if exists df_arcsce ")
-    cur.execute("drop table if exists df_all_sce ")
-    cur.execute("drop table if exists df_all_arcsce ")
 
-    cur.execute("vacuum")
-    con.close()
+
+    path_fail='data/escenarios1/fallos'
+    path_kpi='data/escenarios1/kpis'
+
+
+    files_in_kpi = sorted(listdir(path_kpi))
     
+    
+    #kpi=files_in_kpi[0] #para debugging
+    for kpi in tqdm(files_in_kpi):
+        
+        print(f"Procesando escenario: {kpi}")
+        arc_reinforced = kpi[4:-4]
+        db='data/DB1/db_'+arc_reinforced.replace('-','_')
+        url_kpi=path_kpi + '/' + kpi                    
+        url_arcsce=path_fail + '/' + 'fallos_' + arc_reinforced + '.txt'
+       
+        #print(arc_reinforced, url_kpi, url_arcsce) 
+        
+        con=sql.connect(db)
+        cur= sql.Cursor(con)
+        
+        count_dbs=pd.read_sql("select name from sqlite_master where type='table'", con).shape[0]
+        if count_dbs >  0: 
+            continue
+        
+        arc_clas(con,url_arc)
+        set_node_df(con,url_nodes,url_nodeclas)
+        set_arcsce_df(con, url_arcsce)
+        df_kpi=prepro_kpi(url_kpi) ## generar kpi organizado
+        set_df_full_arc_sce(con, cur, df_kpi)
+        
+        #### depurar base ###
+        cur.execute("drop table if exists df_arcsce ")
+        cur.execute("drop table if exists df_all_sce ")
+        cur.execute("drop table if exists df_all_arcsce ")
+
+        cur.execute("vacuum")
+        con.close()
+        print(f"Escenario {arc_reinforced} procesado y guardado en {db}")
+        
     
 main()
 

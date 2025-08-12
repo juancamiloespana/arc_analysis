@@ -14,6 +14,9 @@ import _funciones as fn
 from sklearn import tree
 from sklearn.tree import export_text 
 import openpyxl
+import os
+from os import listdir ### para hacer lista de archivos en una ruta
+from tqdm import tqdm  ### para crear contador en un for para ver evolución
 
 
 
@@ -125,7 +128,8 @@ def dif_prop(var_name, X2, y):
     ##var_name=X_intera.columns[140] ##para pruebas
     ##arcs=X_intera[var_name]
     arcs=X2[var_name]
-    
+    # print(y.shape, arcs.shape)
+    # print(y)
     m_aok=np.mean(y[arcs==0])
     m_af=np.mean(y[arcs==1])
     sd_aok=np.std(y[arcs==0])
@@ -223,46 +227,53 @@ def analizar_comb(X, y):
 
 
 ########### probar en escenarios #####
+def main():
+    dbs_path='data/DB2'
+    results_path='resultados/subsets_escenarios2'
 
+    dbs=listdir(dbs_path)
 
+    # db=dbs[2] ### for debugging
+    ### conectarse a bd
+    for db in tqdm(dbs):
+        esc=db[3:] ### extraer nombre del escenario 
+        if os.path.exists(results_path + '/' + 'subsets_' + esc+ '.xlsx'):
+            print(f"Escenario {esc} was already processed and output file exist in {results_path}")
+            continue
+        
 
+        print(f"Processing scenario: {esc}")
 
-#### uso final ####
-bds=["data\\db_estFija10","data\\db_estFija20","data\\db_estFija30"]
-
-
-
-### conectarse a bd
-
-bd='data\\girardot_espinal'
-
-con=sql.connect(bd) 
-cur=con.cursor()
-
-cur.execute("select name from sqlite_master where type='table'")
-cur.fetchall()
-
-
-##### cargar base de datos ####
-df=pd.read_sql(" select * from kpi_arc_ff", con)
-
-#### separar base de detos
-X=df.drop(['escenario','Ventas_perdidas','Costo_ventas_perdidas'],axis=1)
-y=df['Ventas_perdidas']
-
-
-comp_estFijo=analizar_comb(X,y)
-# comp_estFijo30=analizar_comb(X, y)
-
-# comp_estFijo20=analizar_comb(X, y)
-
-# comp_estFijo10= analizar_comb(X, y)
-
+        bd=dbs_path + '/' + db
     
-# comp_estFijo10.to_excel("resultados\\comp_estFijo10.xlsx", index=False)
-# comp_estFijo20.to_excel("resultados\\comp_estFijo20.xlsx", index=False)
-# comp_estFijo30.to_excel("resultados\\comp_estFijo30.xlsx", index=False)
-comp_estFijo.to_excel("resultados\\comp_giradot_espinal.xlsx", index=False)
+
+        con=sql.connect(bd) 
+        cur=con.cursor()
+        #con.close()
+        #cur.close()
+        #cur.execute("select name from sqlite_master where type='table'")
+        #cur.fetchall()
+
+
+    ##### cargar base de datos ####
+        df=pd.read_sql(" select * from kpi_arc_ff", con)
+
+        #### separar base de detos
+        X=df.drop(['escenario','Ventas_perdidas','Costo_ventas_perdidas'],axis=1)
+        y=df['Ventas_perdidas']
+
+        try:
+            comp_estFijo=analizar_comb(X,y)
+            output_file = results_path + '/' + 'subsets_' + esc + '.xlsx'
+            comp_estFijo.to_excel( output_file, index=False)
+        except Exception as e:
+            print(f"Error processing scenario {esc}: {e}")
+
+
+main()
+
+
+
 
 
 ##### arbol imprimir

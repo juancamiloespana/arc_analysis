@@ -265,6 +265,13 @@ comp_estFijo=analizar_comb(X,y)
 comp_estFijo.to_excel("resultados\\comp_estFijo.xlsx", index=False)
 
 
+
+
+
+
+
+
+
 ##### arbol imprimir
 
 ### numero de escenarios que se consdiran significativos

@@ -5,6 +5,9 @@
 import pandas as pd
 import sqlite3 as sql
 import openpyxl
+from os import listdir
+from tqdm import tqdm  ### para crear contador en un for para ver evolución
+
 
 
 def arc_clas(con,url_arc='data/arcsData.txt'):
@@ -160,39 +163,53 @@ def main():
     #### Kpi_ff: Kpi escenario fullflex
     #### kpi_arc_ff: unión de kpi_ff con df_wide_arc_sce  es la que queda en base de datos
     
-    path_fail='data/escenarios/fallos/'
-    path_kpi='data/escenarios/kpi/'
+    ## archivos genéricos de la red
 
-
-
-    db='data/girardot_espinal'
     url_arc='data/arcsData.txt'
     url_nodes='data/nodesData.txt'
     url_nodeclas='data/clasificacionArcos.txt'
-    url_arcsce='data/escenarios/fallos_Girardot-Espinal.csv'
-    url_kpi='data/escenarios/kpi_Girardot-Espinal.csv'
-    
-    
-    con=sql.connect(db)
-    cur= sql.Cursor(con)
-    
-    cur.execute("select name from sqlite_master where type='table'")
-    cur.fetchall()
-    #### preprocesar insumos
-    arc_clas(con,url_arc)
-    set_node_df(con,url_nodes,url_nodeclas)
-    set_arcsce_df(con, url_arcsce)
-    df_kpi=prepro_kpi(url_kpi) ## generar kpi organizado
-    set_df_full_arc_sce(con, cur, df_kpi)
-    
-    #### depurar base ###
-    cur.execute("drop table if exists df_arcsce ")
-    cur.execute("drop table if exists df_all_sce ")
-    cur.execute("drop table if exists df_all_arcsce ")
 
-    cur.execute("vacuum")
-    con.close()
+
+    path_fail='data/escenarios2/fallos'
+    path_kpi='data/escenarios2/kpis'
+
+
+    files_in_kpi = [f for f in listdir(path_kpi)]
+
     
+    #kpi=files_in_kpi[2] #para debugging
+    for kpi in tqdm(files_in_kpi):
+        
+        print(f"Procesando escenario: {kpi}")
+        arc_reinforced = kpi[4:-4]
+        db='data/DB2/db_'+arc_reinforced.replace('-','_')
+        url_kpi=path_kpi + '/' + kpi                    
+        url_arcsce=path_fail + '/' + 'fallos_' + arc_reinforced + '.csv'
+       
+        #print(arc_reinforced, url_kpi, url_arcsce) 
+        
+        con=sql.connect(db)
+        cur= sql.Cursor(con)
+        
+        count_dbs=pd.read_sql("select name from sqlite_master where type='table'", con).shape[0]
+        if count_dbs >  0: 
+            continue
+        
+        arc_clas(con,url_arc)
+        set_node_df(con,url_nodes,url_nodeclas)
+        set_arcsce_df(con, url_arcsce)
+        df_kpi=prepro_kpi(url_kpi) ## generar kpi organizado
+        set_df_full_arc_sce(con, cur, df_kpi)
+        
+        #### depurar base ###
+        cur.execute("drop table if exists df_arcsce ")
+        cur.execute("drop table if exists df_all_sce ")
+        cur.execute("drop table if exists df_all_arcsce ")
+
+        cur.execute("vacuum")
+        con.close()
+   
+        
     
 main()
 
@@ -239,6 +256,7 @@ info_nodes=pd.read_sql("""with t1 as (
                         from t1 a left join 
                         coordenadas b 
                         on a.name_node =b.Name order by Latitude asc""", con)
+
 
 
 
