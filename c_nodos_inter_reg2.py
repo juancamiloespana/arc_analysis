@@ -1,3 +1,4 @@
+from itertools import count
 import numpy as np
 import pandas as pd
 import sqlite3 as sql
@@ -186,7 +187,7 @@ def analizar_comb(X, y):
     X2=sel.fit_transform(X)
     colum_out=sel.get_feature_names_out()
     X2=pd.DataFrame(X2, columns=colum_out)
-    X2.info(verbose=True)
+    #X2.info(verbose=True)
 
 
 
@@ -233,7 +234,7 @@ def main():
 
     dbs=listdir(dbs_path)
 
-    # db=dbs[2] ### for debugging
+    # db=dbs[1] ### for debugging
     ### conectarse a bd
     for db in tqdm(dbs):
         esc=db[3:] ### extraer nombre del escenario 
@@ -251,16 +252,18 @@ def main():
         cur=con.cursor()
         #con.close()
         #cur.close()
-        #cur.execute("select name from sqlite_master where type='table'")
-        #cur.fetchall()
+        cur.execute("select name from sqlite_master where type='table'")
+        cur.fetchall()
 
-
+        pd.read_sql("select count(distinct arc) from df_arcsce_count limit 10", con)
     ##### cargar base de datos ####
         df=pd.read_sql(" select * from kpi_arc_ff", con)
 
         #### separar base de detos
         X=df.drop(['escenario','Ventas_perdidas','Costo_ventas_perdidas'],axis=1)
         y=df['Ventas_perdidas']
+
+        
 
         try:
             comp_estFijo=analizar_comb(X,y)
@@ -271,7 +274,6 @@ def main():
 
 
 main()
-
 
 
 
